@@ -1,0 +1,5 @@
+/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug/src/CMakeFiles/btor-analyzer.dir
+/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug/src/CMakeFiles/edit_cache.dir
+/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug/src/CMakeFiles/rebuild_cache.dir
