@@ -2,7 +2,7 @@
 
 #set (EXT_LIBRARIES ${ABC_LIBRARY})
 
-add_executable (btor-analyzer main.cpp get_metadata.h)
+add_executable (btor-analyzer main.cpp metadata.h)
 #add_executable (lia2bv smtlib2bv.cc)
 target_link_libraries (btor-analyzer
 #  AbcCpp

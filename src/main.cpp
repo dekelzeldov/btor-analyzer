@@ -1,6 +1,6 @@
 #include <iostream>
 #include "btor2parser.h"
-#include "get_metadata.h"
+#include "metadata.h"
 
 int main() {
     getmetadata metadata;
