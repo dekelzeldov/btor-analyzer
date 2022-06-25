@@ -12,101 +12,106 @@
 #include <btor2parser.h>
 #include <iostream>
 #include <cassert>
-#include"z3++.h"
+#include <fstream>
 
-using namespace z3;
+using namespace std;
 
-class metadata
+class MetaData
 {
-    struct MetaData
-    {
-        Btor2Parser *model;
+    friend class Btor2Parser;
 
+    struct cond {
+        int64_t sort;
+        int64_t line;
     };
 
-public:
-    void metadata_from_parser (char *model_path){
-        FILE *model_file;
-        Btor2Parser *model;
-        int64_t num_format_lines;
-        std::vector<Btor2Line *> lines;
+    Btor2Parser *parser;
+    const char *model_path;
+    vector <int64_t> input_conditions;
+    vector <int64_t> to_state_conditions;
 
+public:
+    explicit MetaData (const char *model_path) : model_path(model_path){
+        FILE *model_file;
         if (!(model_file = fopen (model_path, "r"))) {
             std::cout << "fopen failed" << std::endl;
             printf("failed to open BTOR model file '%s' for reading", "\n");
             exit(EXIT_FAILURE);
         }
-        model = btor2parser_new ();
-        if (!btor2parser_read_lines (model, model_file)) {
+
+        parser = btor2parser_new ();
+        if (!btor2parser_read_lines (parser, model_file)) {
             std::cout << "read_lines failed" << std::endl;
-            //die ("parse error in '%s' at %s", model_path, btor2parser_error (model));
+            const char *err = btor2parser_error (parser);
+            std::cout << err << std::endl;
+            fclose(model_file);
             exit(EXIT_FAILURE);
         }
-        num_format_lines = btor2parser_max_id (model);
-        lines.resize (num_format_lines, nullptr);
-        Btor2LineIterator it = btor2parser_iter_init (model);
-        Btor2Line *l;
 
-        while ((l = btor2parser_iter_next (&it))) {
-            }
-        }
-
-
-        fclose (model_file);
-        std::cout << "so far, so good!" << std::endl;
-
+        fclose(model_file);
     }
 
-    void print_ite (char *model_path) {
-        FILE *model_file;
-        Btor2Parser *model;
-        int64_t num_format_lines;
-        std::vector<Btor2Line *> lines;
-
-        if (!(model_file = fopen (model_path, "r"))) {
-            std::cout << "fopen failed" << std::endl;
-            printf("failed to open BTOR model file '%s' for reading", "\n");
-            exit(EXIT_FAILURE);
-        }
-        model = btor2parser_new ();
-        if (!btor2parser_read_lines (model, model_file)) {
-            std::cout << "read_lines failed" << std::endl;
-            //die ("parse error in '%s' at %s", model_path, btor2parser_error (model));
-            exit(EXIT_FAILURE);
-        }
-        num_format_lines = btor2parser_max_id (model);
-        lines.resize (num_format_lines, nullptr);
-        Btor2LineIterator it = btor2parser_iter_init (model);
+    void add_ite_conditions () {
+        Btor2LineIterator it = btor2parser_iter_init (parser);
         Btor2Line *l;
-
         while ((l = btor2parser_iter_next (&it))) {
-            lines[l->id]=l;
             if (l->tag == BTOR2_TAG_ite) {
                 assert (l->nargs == 3);
-                assert (lines[l->args[0]]->sort.tag == BTOR2_TAG_SORT_bitvec);
-//                if (res.type == BtorSimState::Type::ARRAY)
-//                {
-//                    assert ((l->args[1]).type == BtorSimState::Type::ARRAY);
-//                    assert (l->args[2].type == BtorSimState::Type::ARRAY);
-//                    res.array_state = btorsim_am_ite (
-//                            args[0].bv_state, args[1].array_state, args[2].array_state);
-//                }
-//                else
-//                {
-//                    assert (args[1].type == BtorSimState::Type::BITVEC);
-//                    assert (args[2].type == BtorSimState::Type::BITVEC);
-//                    res.bv_state = btorsim_bv_ite (
-//                            args[0].bv_state, args[1].bv_state, args[2].bv_state);
-//                }
+                Btor2Line* cond_line = btor2parser_get_line_by_id(parser, l->args[0]);
+                if (cond_line->tag == BTOR2_TAG_input) {
+                    input_conditions.push_back(cond_line->id);
+                } else {
+                    to_state_conditions.push_back(cond_line->id);
+                }
             }
         }
-
-
-        fclose (model_file);
-        std::cout << "so far, so good!" << std::endl;
-
+        cout << "done adding ite conditions" << endl;
     }
 
+    static bool copyFile(const char *SRC, const char* DEST)
+    {
+        ifstream src(SRC, ios::binary);
+        ofstream dest(DEST, ios::binary);
+        dest << src.rdbuf();
+        return src && dest;
+    }
+
+    void add_conditions_states (const char *modified_model_path) {
+        copyFile (model_path, modified_model_path);
+
+        ofstream out;
+        out.open(modified_model_path, ios::app);
+        int64_t line_id = btor2parser_max_id(parser);
+        for(const int64_t id: to_state_conditions) {
+            // 6 state 4 counter
+            // 7 init 4 6 5
+            // 12 next 4 6 11
+            string sort = to_string(btor2parser_get_line_by_id(parser, id)->sort.id).append(" ");
+            string cond = to_string(id);
+            string state_id = to_string(++line_id).append(" ");
+            string sort_state_cond_ids = sort;
+            sort_state_cond_ids.append(state_id).append(cond);
+
+            out << state_id << "state " << sort << "cond_line_" << cond << endl;
+            out << to_string(++line_id) << " init " << sort_state_cond_ids << endl;
+            out << to_string(++line_id) << " next " << sort_state_cond_ids << endl;
+        }
+        cout << "done adding condition states" << endl;
+    }
+
+    void print_conditions () {
+        cout << endl << "input conditions: " << endl;
+        for(const int64_t id: input_conditions) {
+            cout << to_string(id) << " ";
+        }
+        cout << endl;
+
+        cout << endl << "state conditions: " << endl;
+        for(const int64_t id: to_state_conditions) {
+            cout << to_string(id) << " ";
+        }
+        cout << endl;
+    }
 };
 
 #endif //BTOR_ANALYZER_METADATA_H
