@@ -8,11 +8,11 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
-#include <vector>
 #include <btor2parser.h>
 #include <iostream>
 #include <cassert>
 #include <fstream>
+#include <set>
 
 using namespace std;
 
@@ -27,8 +27,8 @@ class MetaData
 
     Btor2Parser *parser;
     const char *model_path;
-    vector <int64_t> input_conditions;
-    vector <int64_t> to_state_conditions;
+    set <int64_t> input_conditions;
+    set <int64_t> to_state_conditions;
 
 public:
     explicit MetaData (const char *model_path) : model_path(model_path){
@@ -59,9 +59,9 @@ public:
                 assert (l->nargs == 3);
                 Btor2Line* cond_line = btor2parser_get_line_by_id(parser, l->args[0]);
                 if (cond_line->tag == BTOR2_TAG_input) {
-                    input_conditions.push_back(cond_line->id);
+                    input_conditions.insert(cond_line->id);
                 } else {
-                    to_state_conditions.push_back(cond_line->id);
+                    to_state_conditions.insert(cond_line->id);
                 }
             }
         }
