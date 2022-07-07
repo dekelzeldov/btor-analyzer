@@ -14,6 +14,21 @@
 # EXTERNAL cache entries
 ########################
 
+//Path to a program.
+ABC_ARCH_FLAGS:FILEPATH=/home/dekel/workspace/abc/arch_flags
+
+//Path to a file.
+ABC_INCLUDE_DIR:PATH=/home/dekel/workspace/abc/src
+
+//Path to a library.
+ABC_LIBRARY:FILEPATH=/home/dekel/workspace/abc/dbg/libabc.a
+
+//Abc namespace to use.
+ABC_NAMESPACE:STRING=abc
+
+//Root of ABC compiled source tree.
+ABC_ROOT:PATH=/home/dekel/workspace/abc
+
 //Static executables.
 BTOR_ANALYZER_STATIC_EXE:BOOL=OFF
 
@@ -243,6 +258,12 @@ btor_analyzer_SOURCE_DIR:STATIC=/home/dekel/CLionProjects/btor-analyzer
 # INTERNAL cache entries
 ########################
 
+//ADVANCED property for variable: ABC_ARCH_FLAGS
+ABC_ARCH_FLAGS-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: ABC_INCLUDE_DIR
+ABC_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: ABC_LIBRARY
+ABC_LIBRARY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: Boost_DIR
 Boost_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_ADDR2LINE
@@ -386,6 +407,8 @@ CMAKE_STRIP-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding Abc
+FIND_PACKAGE_MESSAGE_DETAILS_Abc:INTERNAL=[/home/dekel/workspace/abc/dbg/libabc.a][/home/dekel/workspace/abc/src][v()]
 //Details about finding Boost
 FIND_PACKAGE_MESSAGE_DETAILS_Boost:INTERNAL=[/lib/x86_64-linux-gnu/cmake/Boost-1.71.0/BoostConfig.cmake][cfound components: program_options ][v1.71.0(1.61)]
 //ADVANCED property for variable: RT_LIB

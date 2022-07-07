@@ -1,7 +1,6 @@
 #add_library (BvMc STATIC BvMc.cpp)
 
-#set (EXT_LIBRARIES ${ABC_LIBRARY})
-
+set (EXT_LIBRARIES ${ABC_LIBRARY})
 
 add_executable (btor-analyzer main.cpp metadata.h)
 #add_executable (lia2bv smtlib2bv.cc)

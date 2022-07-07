@@ -1,7 +1,7 @@
 [
 {
   "directory": "/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug",
-  "command": "/bin/c++ -I/include -I/home/dekel/CLionProjects/btor-analyzer/include -I/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug/include -I/home/dekel/workspace/btor2tools/src/btor2parser -g -std=gnu++2a -o src/CMakeFiles/btor-analyzer.dir/main.cpp.o -c /home/dekel/CLionProjects/btor-analyzer/src/main.cpp",
+  "command": "/bin/c++ -DABC_NAMESPACE=abc -I/include -I/home/dekel/workspace/abc/src -I/home/dekel/CLionProjects/btor-analyzer/include -I/home/dekel/CLionProjects/btor-analyzer/cmake-build-debug/include -I/home/dekel/workspace/btor2tools/src/btor2parser  -DLIN64 -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=8 -DSIZEOF_INT=4 -DABC_NAMESPACE=abc -g -std=gnu++2a -o src/CMakeFiles/btor-analyzer.dir/main.cpp.o -c /home/dekel/CLionProjects/btor-analyzer/src/main.cpp",
   "file": "/home/dekel/CLionProjects/btor-analyzer/src/main.cpp"
 }
 ]

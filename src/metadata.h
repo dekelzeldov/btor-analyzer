@@ -13,17 +13,14 @@
 #include <cassert>
 #include <fstream>
 #include <set>
+#include <string>
+#include <sstream>
 
 using namespace std;
 
 class MetaData
 {
     friend class Btor2Parser;
-
-    struct cond {
-        int64_t sort;
-        int64_t line;
-    };
 
     Btor2Parser *parser;
     const char *model_path;
@@ -76,25 +73,51 @@ public:
         return src && dest;
     }
 
-    void add_conditions_states (const char *modified_model_path) {
+    void add_conditions_states (const char * modified_model_path) {
         copyFile (model_path, modified_model_path);
+        ifstream infile(model_path);
+        ofstream outFile(modified_model_path);
 
-        ofstream out;
-        out.open(modified_model_path, ios::app);
+        string line;
+        while (getline(infile, line))
+        {
+            int lineid;
+            string input;
+            int sortid;
+            string name;
+            string end;
+            stringstream sline(line);
+            sline >> lineid;
+            if (input_conditions.count(lineid)) {
+                sline >> input;
+                sline >> sortid;
+                sline >> name;
+                assert (!(sline >> end));
+                outFile << lineid << " ";
+                outFile << input << " ";
+                outFile << sortid << " ";
+                outFile << "__cond_input_" << name << "\n";
+
+            } else {
+                outFile << line << "\n";
+            }
+        }
+
         int64_t line_id = btor2parser_max_id(parser);
         for(const int64_t id: to_state_conditions) {
             // 6 state 4 counter
+            // 5 zero 4
             // 7 init 4 6 5
             // 12 next 4 6 11
-            string sort = to_string(btor2parser_get_line_by_id(parser, id)->sort.id).append(" ");
-            string cond = to_string(id);
+            string sort = to_string(btor2parser_get_line_by_id(parser, id)->sort.id);
+            string cond_id = to_string(id);
+            string zero_id = to_string(++line_id);
             string state_id = to_string(++line_id).append(" ");
-            string sort_state_cond_ids = sort;
-            sort_state_cond_ids.append(state_id).append(cond);
 
-            out << state_id << "state " << sort << "cond_line_" << cond << endl;
-            out << to_string(++line_id) << " init " << sort_state_cond_ids << endl;
-            out << to_string(++line_id) << " next " << sort_state_cond_ids << endl;
+            outFile << zero_id  << " zero " << sort << endl;
+            outFile << state_id << "state " << sort << " __cond_line_" << cond_id << endl;
+            outFile << to_string(++line_id) << " init " << sort << " " << state_id << zero_id << endl;
+            outFile << to_string(++line_id) << " next " << sort << " " << state_id << cond_id << endl;
         }
         cout << "done adding condition states" << endl;
     }
