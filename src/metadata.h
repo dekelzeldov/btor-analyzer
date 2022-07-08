@@ -24,7 +24,6 @@ class MetaData
 
     Btor2Parser *parser;
     const char *model_path;
-    set <int64_t> input_conditions;
     set <int64_t> to_state_conditions;
 
 public:
@@ -55,11 +54,7 @@ public:
             if (l->tag == BTOR2_TAG_ite) {
                 assert (l->nargs == 3);
                 Btor2Line* cond_line = btor2parser_get_line_by_id(parser, l->args[0]);
-                if (cond_line->tag == BTOR2_TAG_input) {
-                    input_conditions.insert(cond_line->id);
-                } else {
-                    to_state_conditions.insert(cond_line->id);
-                }
+                to_state_conditions.insert(cond_line->id);
             }
         }
         cout << "done adding ite conditions" << endl;
@@ -75,33 +70,7 @@ public:
 
     void add_conditions_states (const char * modified_model_path) {
         copyFile (model_path, modified_model_path);
-        ifstream infile(model_path);
-        ofstream outFile(modified_model_path);
-
-        string line;
-        while (getline(infile, line))
-        {
-            int lineid;
-            string input;
-            int sortid;
-            string name;
-            string end;
-            stringstream sline(line);
-            sline >> lineid;
-            if (input_conditions.count(lineid)) {
-                sline >> input;
-                sline >> sortid;
-                sline >> name;
-                assert (!(sline >> end));
-                outFile << lineid << " ";
-                outFile << input << " ";
-                outFile << sortid << " ";
-                outFile << "__cond_input_" << name << "\n";
-
-            } else {
-                outFile << line << "\n";
-            }
-        }
+        ofstream outFile(modified_model_path, std::ios_base::app);
 
         int64_t line_id = btor2parser_max_id(parser);
         for(const int64_t id: to_state_conditions) {
@@ -123,12 +92,6 @@ public:
     }
 
     void print_conditions () {
-        cout << endl << "input conditions: " << endl;
-        for(const int64_t id: input_conditions) {
-            cout << to_string(id) << " ";
-        }
-        cout << endl;
-
         cout << endl << "state conditions: " << endl;
         for(const int64_t id: to_state_conditions) {
             cout << to_string(id) << " ";
