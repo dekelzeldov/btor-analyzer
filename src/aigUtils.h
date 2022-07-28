@@ -5,98 +5,124 @@
 #ifndef BTOR_ANALYZER_AIGUTILS_H
 #define BTOR_ANALYZER_AIGUTILS_H
 
-#include <iostream>
-#include "btor2parser.h"
 #include "metadata.h"
-#include <string>
-#include <vector>
-#include <cassert>
+#include <regex>
 
-#include "aig/aig/aig.h"
-#include "aig/gia/gia.h"
-#include "aig/gia/giaAig.h"
-#include "aig/ioa/ioa.h"
-#include "base/main/main.h"
-
-using namespace std;
-using namespace abc;
 
 namespace ABC_NAMESPACE {
     extern Aig_Man_t *Abc_NtkToDar(Abc_Ntk_t *pNtk, int fExors, int fRegisters);
 }
 
 
-static Aig_Man_t *loadAig(const std::string& fname) {
+static Gia_Man_t *loadAig(const std::string& fname) {
     Abc_Frame_t *pFrame = Abc_FrameGetGlobalFrame();
 
     //VERBOSE(2, vcut() << "\tReading AIG from '" << fname << "'\n";);
-    string cmd = "read " + fname;
+    string cmd = "read " + fname + " ; zero; &get -n";
     Cmd_CommandExecute(pFrame, cmd.c_str());
 
-    Abc_Ntk_t *pNtk = Abc_FrameReadNtk(pFrame);
-
-    return Abc_NtkToDar(pNtk, 0, 1);
+    Gia_Man_t * pAig = Abc_FrameReadGia(pFrame);
+    return pAig;
 }
 
+Gia_Man_t * MetaData::Gia_remove_condStates(Gia_Man_t *p) {
+    Gia_Man_t *pNew;
 
-Aig_Man_t *Aig_remove_condStates(Aig_Man_t *p) {
-
-    // create the new manager
-    Aig_Man_t *pNew = Aig_ManStart(Aig_ManObjNumMax(p));
+    pNew = Gia_ManStart(Gia_ManObjNum(p) - 2*btor_conds.size()); // - key*2
+    Gia_ManHashStart(pNew);
     pNew->pName = Abc_UtilStrsav(p->pName);
     pNew->pSpec = Abc_UtilStrsav(p->pSpec);
-    pNew->nTruePis = p->nTruePis;
-    pNew->nTruePos = p->nConstrs;  //OK?
-    pNew->nRegs = p->nRegs;  //OK?
+    Gia_ManConst0(p)->Value = 0;
 
-    // -- move nodes
-    Aig_ManConst1(p)->pData = Aig_ManConst1(pNew);
-
-    // -- inputs
+    Gia_Obj_t *pObj;
     int i;
-    Aig_Obj_t *pObj;
-    Aig_ManForEachCi(p, pObj, i) {
-        pObj->pData = Aig_ObjCreateCi(pNew);
-    }
+    char * pObjName;
 
-    // duplicate internal nodes
-    Aig_ManForEachNode(p, pObj, i) {
-            pObj->pData =
-                    Aig_And(pNew, Aig_ObjChild0Copy(pObj), Aig_ObjChild1Copy(pObj));
+    int numCond = 0;
+
+    Gia_ManForEachCi(p, pObj, i) {
+        pObjName = Gia_ObjCiName(p, i);
+        if (pObjName == strstr(pObjName, cond_prefix)) {
+            numCond++;
+        } else {
+            pObj->Value = Gia_ManAppendCi(pNew);
         }
-/*
-    // create constraint outputs
-    Saig_ManForEachPo(p, pObj, i) {
-        if (i < Saig_ManPoNum(p) - Saig_ManConstrNum(p))
-            continue;
-        Aig_ObjCreateCo(pNew, Aig_Not(Aig_ObjChild0Copy(pObj)));
     }
 
-    if (fKeepRegs) {
-        // -- registers
-        Saig_ManForEachLi(p, pObj, i)
-        Aig_ObjCreateCo(pNew, Aig_ObjChild0Copy(pObj));
+    Gia_ManForEachAnd(p, pObj, i) {
+            pObj->Value = Gia_ManHashAnd(pNew, Gia_ObjFanin0Copy(pObj), Gia_ObjFanin1Copy(pObj));
+        }
+
+    int numCondCo = 0;
+    Gia_ManForEachCo(p, pObj, i) {
+        pObjName = Gia_ObjCoName(p, i);
+        if (pObjName == strstr(pObjName, cond_prefix)) {
+            numCondCo++;
+            int cond_num = stoi(regex_replace(pObjName, regex("[^0-9]*([0-9]+).*"), string("$1")));
+            assert(btor_conds.count(cond_num));
+            gia_conds.insert(pair <int64_t, meta*> (Gia_ObjFanin0Copy(pObj), btor_conds.at(cond_num)));
+        } else {
+            pObj->Value = Gia_ManAppendCo(pNew, Gia_ObjFanin0Copy(pObj));
+        }
     }
 
-    if (nPo >= 0) {
-        AVY_ASSERT(Aig_ObjChild0Copy(Aig_ManCo(p, nPo)) != NULL);
-        Aig_ObjCreateCo(pNew, Aig_ObjChild0Copy(Aig_ManCo(p, nPo)));
+    assert(numCond == numCondCo);
+    assert(numCond == btor_conds.size());
+
+    Gia_ManSetRegNum(pNew, Gia_ManRegNum(p) - numCond);
+
+    Gia_ManHashStop(pNew);
+    assert(Gia_ManIsNormalized(pNew));
+
+    Gia_Man_t *pClean = Gia_ManCleanup(pNew);
+    Gia_ManStop(pNew);
+
+    assert(Gia_ManIsNormalized(pClean));
+
+    return pClean;
+}
+
+void Gia_clearMark0ForFaninRec(Gia_Obj_t *pObj){
+    if(!pObj->fMark0){
+        return;
     }
-*/
-    Aig_ManCleanData(p);
-    Aig_ManCleanup(pNew);
+    pObj->fMark0=0;
+    if(Gia_ObjIsAnd(pObj)){
+        Gia_clearMark0ForFaninRec(Gia_ObjFanin0(pObj));
+        Gia_clearMark0ForFaninRec(Gia_ObjFanin1(pObj));
+    } else {
+        assert(Gia_ObjIsCi(pObj));
+    }
+}
+
+Gia_Man_t * MetaData::Gia_make_condSAT(Gia_Man_t *p) {
+    Gia_ManSetMark0(p);
+    Gia_Obj_t *pObj;
+    int i;
+    char * pObjName;
+    Gia_ManForEachCo(p, pObj, i) {
+        pObjName = Gia_ObjCoName(p, i);
+        if (pObjName == strstr(pObjName, cond_prefix)) {
+            Gia_clearMark0ForFaninRec(pObj);
+        }
+    }
+    Gia_Man_t * pNew = Gia_ManDupMarked(p);
+    Gia_ManCleanMark0(p);
     return pNew;
 }
 
-Gia_Man_t * gia_no_condStates(const string& aig_path) {
-    Aig_Man_t *aig_mng = loadAig(aig_path);
-    Aig_Man_t *aig_new_mng = Aig_remove_condStates(aig_mng);
-    Gia_Man_t * gia_mng = Gia_ManFromAigSimple(aig_new_mng);
-    Aig_ManStop(aig_mng);
-    Aig_ManStop(aig_new_mng);
-    return gia_mng;
+Gia_Man_t * MetaData::Gia_no_condStates(const string& aig_path) {
+    Gia_Man_t * gia_mng = loadAig(aig_path);
+    Gia_Man_t * gia_no_condSt = Gia_remove_condStates(gia_mng);
+    Gia_ManStop(gia_mng);
+    return gia_no_condSt;
 }
 
-
+Gia_Man_t * MetaData::Gia_condSAT(const string& aig_path) {
+    Gia_Man_t * gia_mng = loadAig(aig_path);
+    Gia_Man_t * gia_cond_sat = Gia_make_condSAT(gia_mng);
+    Gia_ManStop(gia_mng);
+    return gia_cond_sat;
+}
 
 #endif //BTOR_ANALYZER_AIGUTILS_H
