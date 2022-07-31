@@ -1,5 +1,0 @@
-/snap/clion/193/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/snap/clion/193/bin/ninja/linux/ninja -DBTOR_ROOT=/home/dekel/workspace/btor2tools -DABC_ROOT=/home/dekel/workspace/abc -DABC_LIBRARY=/home/dekel/workspace/abc/dbg/libabc.a -DCMAKE_BUILD_TYPE=Debug -G Ninja -S /home/dekel/CLionProjects/btor-analyzer -B /home/dekel/CLionProjects/btor-analyzer/cmake-build-debug
--- ABC arch flags are: -DLIN64 -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=8 -DSIZEOF_INT=4 -DABC_NAMESPACE=abc
--- Configuring done
--- Generating done
--- Build files have been written to: /home/dekel/CLionProjects/btor-analyzer/cmake-build-debug
