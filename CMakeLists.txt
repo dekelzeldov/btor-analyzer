@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.16)
 project(btor_analyzer)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR )
@@ -50,13 +50,33 @@ else()
     set(ABC_LIBRARY "")
 endif ()
 
+find_package(Glucose REQUIRED)
+if (GLUCOSE_FOUND)
+  include_directories(${GLUCOSE_INCLUDE_DIR})
+else()
+  set (GLUCOSE_LIBRARY "")
+endif()
+
+find_package(Muser2)
+if (MUSER2_FOUND)
+  include_directories(${MUSER2_INCLUDE_DIR})
+else()
+  set (MUSER2_LIBRARY "")
+endif()
+
 #set(SMTPARSER_LIBRARY /home/yakir/workspace/bvmc/smtlib2parser-1.4/libsmtlib2parser.a)
 set(BTOR_LIBRARY ${BTOR_ROOT}/build/lib/libbtor2parser.a)
+
+MESSAGE(${GLUCOSE_INCLUDE_DIR})
 
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_BINARY_DIR}/include
         ${BTOR_ROOT}/src/btor2parser
+        ${AVY_ROOT}/src
+        ${AVY_ROOT}/include
+        ${GLUCOSE_INCLUDE_DIR}
+        ${MUSER2_INCLUDE_DIR}
 )
 
 add_subdirectory(src)
