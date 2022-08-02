@@ -14,7 +14,7 @@ using namespace abc;
 
 
 int main(int argc, char* argv[]) {
-    string btor2_path = "/home/dekel/CLionProjects/btor-analyzer/hwmcc20/btor2/bv/2020/mann/simple_alu.btor";
+    string btor2_path = "/home/dekel/CLionProjects/btor-analyzer/examples/simple_alu.btor";
     string modified_btor2_path = "/home/dekel/CLionProjects/btor-analyzer/src/mdf.btor2";
     string aig_path = "/home/dekel/CLionProjects/btor-analyzer/src/out.aig";
     string aig_sat_path = "/home/dekel/CLionProjects/btor-analyzer/src/out_sat.aig";
