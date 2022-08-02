@@ -51,7 +51,8 @@ int main() {
         for (int var : condVars) {
             block.push_back(toLitCond(var, g_sat.getVarVal(var)));
         }
-        g_sat.addClause(&block[0], &block[block.size()]);
+        //g_sat.addClause(&block[0], &block[block.size()]);
+        g_sat.addClause(block.data(), block.data()+block.size());
     }
 
 
