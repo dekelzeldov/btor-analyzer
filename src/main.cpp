@@ -42,11 +42,12 @@ int main() {
     unsigned obj_idx;
     vector<int> condVars;
     Gia_ManForEachCo(gia_mng_condSAT, pObj, obj_idx) {
-        int var = (Gia_ObjId(gia_mng_condSAT, pObj));
+        int var = pCnf->pVarNums[(Gia_ObjId(gia_mng_condSAT, pObj))];
         condVars.push_back(var);
     }
 
     while (g_sat.solve()) {
+        std::cout << "Found an assignment..." << std::endl;
         vector<int> block;
         for (int var : condVars) {
             block.push_back(toLitCond(var, g_sat.getVarVal(var)));
