@@ -14,12 +14,12 @@ using namespace abc;
 
 
 int main(int argc, char* argv[]) {
-    string btor2_path = "/home/yvizel/workspace/btor-analyzer/hwmcc20/btor2/bv/2020/mann/simple_alu.btor";
-    string modified_btor2_path = "/home/yvizel/workspace/btor-analyzer/src/mdf.btor2";
-    string aig_path = "/home/yvizel/workspace/btor-analyzer/src/out.aig";
-    string aig_sat_path = "/home/yvizel/workspace/btor-analyzer/src/out_sat.aig";
-    string btor2aiger_cmd = "/home/yvizel/workspace/btor2tools/build/bin/btor2aiger " + modified_btor2_path + " > " + aig_path;
-    string aiger2aiger_cmd = "/home/yvizel/workspace/aiger/aigtoaig " + aig_sat_path + " -a";
+    string btor2_path = "/home/dekel/CLionProjects/btor-analyzer/hwmcc20/btor2/bv/2020/mann/simple_alu.btor";
+    string modified_btor2_path = "/home/dekel/CLionProjects/btor-analyzer/src/mdf.btor2";
+    string aig_path = "/home/dekel/CLionProjects/btor-analyzer/src/out.aig";
+    string aig_sat_path = "/home/dekel/CLionProjects/btor-analyzer/src/out_sat.aig";
+    string btor2aiger_cmd = "/home/dekel/workspace/btor2tools/cmake-build-debug/bin/btor2aiger " + modified_btor2_path + " > " + aig_path;
+    string aiger2aiger_cmd = "/home/dekel/workspace/aiger/aigtoaig " + aig_sat_path + " -a";
 
     MetaData md(btor2_path.c_str());
     md.add_ite_conditions();
