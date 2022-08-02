@@ -125,6 +125,11 @@ public:
         }
     }
 
+    long num_cond(){
+        assert (btor_conds.size() == gia_conds.size());
+        return (int) btor_conds.size();
+    }
+
     //aigUtils
     Gia_Man_t * Gia_remove_condStates(Gia_Man_t *p);
     Gia_Man_t * Gia_no_condStates(const string& aig_path);

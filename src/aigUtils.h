@@ -9,22 +9,24 @@
 #include <regex>
 
 
-namespace ABC_NAMESPACE {
-    extern Aig_Man_t *Abc_NtkToDar(Abc_Ntk_t *pNtk, int fExors, int fRegisters);
-}
-
-
 static Gia_Man_t *loadAig(const std::string& fname) {
     Abc_Frame_t *pFrame = Abc_FrameGetGlobalFrame();
 
-    //VERBOSE(2, vcut() << "\tReading AIG from '" << fname << "'\n";);
     string cmd = "read " + fname + " ; zero; &get -n";
     Cmd_CommandExecute(pFrame, cmd.c_str());
 
     Gia_Man_t * pAig = Abc_FrameReadGia(pFrame);
     return pAig;
 }
-
+/*
+void convert_to_ascii(const std::string& fin, const std::string& fout){
+    Abc_Frame_t *pFrame = Abc_FrameGetGlobalFrame();
+    string rcmd = "read " + fin + " ; zero; &get -n";
+    Cmd_CommandExecute(pFrame, rcmd.c_str());
+    string wcmd = "write_aiger" + fout;
+    Cmd_CommandExecute(pFrame, wcmd.c_str());
+}
+*/
 Gia_Man_t * MetaData::Gia_remove_condStates(Gia_Man_t *p) {
     Gia_Man_t *pNew;
 
@@ -68,6 +70,7 @@ Gia_Man_t * MetaData::Gia_remove_condStates(Gia_Man_t *p) {
 
     assert(numCond == numCondCo);
     assert(numCond == btor_conds.size());
+    assert(gia_conds.size() == btor_conds.size());
 
     Gia_ManSetRegNum(pNew, Gia_ManRegNum(p) - numCond);
 
@@ -87,7 +90,9 @@ void Gia_clearMark0ForFaninRec(Gia_Obj_t *pObj){
         return;
     }
     pObj->fMark0=0;
-    if(Gia_ObjIsAnd(pObj)){
+    if(Gia_ObjIsCo(pObj)){
+        Gia_clearMark0ForFaninRec(Gia_ObjFanin0(pObj));
+    } else if(Gia_ObjIsAnd(pObj)){
         Gia_clearMark0ForFaninRec(Gia_ObjFanin0(pObj));
         Gia_clearMark0ForFaninRec(Gia_ObjFanin1(pObj));
     } else {
@@ -95,19 +100,60 @@ void Gia_clearMark0ForFaninRec(Gia_Obj_t *pObj){
     }
 }
 
+Gia_Man_t * Gia_DupUnMarked( Gia_Man_t * p )
+{
+    Gia_Man_t * pNew;
+    Gia_Obj_t * pObj;
+    int i;
+    int CountMarked = 0;
+    Gia_ManForEachObj( p, pObj, i )
+        CountMarked += pObj->fMark0;
+    Gia_ManFillValue( p );
+    pNew = Gia_ManStart( Gia_ManObjNum(p) - CountMarked );
+    pNew->nConstrs = p->nConstrs;
+    pNew->pName = Abc_UtilStrsav( p->pName );
+    pNew->pSpec = Abc_UtilStrsav( p->pSpec );
+    Gia_ManConst0(p)->Value = 0;
+    Gia_ManForEachObj1( p, pObj, i )
+    {
+        if ( pObj->fMark0 )
+        {
+            pObj->fMark0 = 0;
+        }
+        else if ( Gia_ObjIsAnd(pObj) )
+        {
+            pObj->Value = Gia_ManAppendAnd( pNew, Gia_ObjFanin0Copy(pObj), Gia_ObjFanin1Copy(pObj) );
+        }
+        else if ( Gia_ObjIsCi(pObj) )
+        {
+            pObj->Value = Gia_ManAppendCi( pNew );
+        }
+        else
+        {
+            assert( Gia_ObjIsCo(pObj) );
+            pObj->Value = Gia_ManAppendCo( pNew, Gia_ObjFanin0Copy(pObj) );
+        }
+    }
+    assert( pNew->nObjsAlloc == pNew->nObjs );
+    Gia_ManSetRegNum( pNew, 0 );
+    return pNew;
+}
+
 Gia_Man_t * MetaData::Gia_make_condSAT(Gia_Man_t *p) {
-    Gia_ManSetMark0(p);
     Gia_Obj_t *pObj;
     int i;
     char * pObjName;
+    Gia_ManSetMark0(p);
+    Gia_ManConst0(p)->fMark0 = 0;
     Gia_ManForEachCo(p, pObj, i) {
         pObjName = Gia_ObjCoName(p, i);
         if (pObjName == strstr(pObjName, cond_prefix)) {
             Gia_clearMark0ForFaninRec(pObj);
         }
     }
-    Gia_Man_t * pNew = Gia_ManDupMarked(p);
+    Gia_Man_t * pNew = Gia_DupUnMarked(p);
     Gia_ManCleanMark0(p);
+    assert(Gia_ManCoNum(pNew) == btor_conds.size());
     return pNew;
 }
 
