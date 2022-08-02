@@ -7,6 +7,8 @@
 #include "aig/gia/gia.h"
 #include "sat/cnf/cnf.h"
 
+#include "Glucose.h"
+
 using namespace std;
 using namespace abc;
 
@@ -30,6 +32,29 @@ int main() {
     system(aiger2aiger_cmd.c_str());
     Cnf_Dat_t * pCnf = (Cnf_Dat_t *) Mf_ManGenerateCnf( gia_mng_condSAT, 8, 1, 0, 0, 0 );
     Gia_ManStop(gia_mng_condSAT);
+
+    avy::Glucose g_sat(pCnf->nVars, true, true);
+    for (unsigned i=0; i < pCnf->nClauses; i++) {
+        g_sat.addClause(pCnf->pClauses[i], pCnf->pClauses[i+1]);
+    }
+
+    Gia_Obj_t* pObj;
+    unsigned obj_idx;
+    vector<int> condVars;
+    Gia_ManForEachCo(gia_mng_condSAT, pObj, obj_idx) {
+        int var = (Gia_ObjId(gia_mng_condSAT, pObj));
+        condVars.push_back(var);
+    }
+
+    while (g_sat.solve()) {
+        vector<int> block;
+        for (int var : condVars) {
+            block.push_back(toLitCond(var, g_sat.getVarVal(var)));
+        }
+        g_sat.addClause(&block[0], &block[block.size()]);
+    }
+
+
 
     // SAT solver
     //(A==(a&b||c))&(B==(x||y))&(C==...).... += &!(A&B&C)&!(A&!B&C)

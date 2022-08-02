@@ -6,9 +6,10 @@ add_executable (btor-analyzer main.cpp metadata.h aigUtils.h)
 #add_executable (lia2bv smtlib2bv.cc)
 target_link_libraries (btor-analyzer
 #  AbcCpp
-#  AvyDebug
+  ${AVY_DEBUG_LIBRARY}
   ${EXT_LIBRARIES}
   ${BTOR_LIBRARY}
+  ${GLUCOSE_LIBRARY}
  # ${Boost_PROGRAM_OPTIONS_LIBRARY}
   m dl pthread z gmp gmpxx stdc++
   ${RT_LIB})
