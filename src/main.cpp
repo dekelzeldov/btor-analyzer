@@ -29,13 +29,13 @@ int main(int argc, char* argv[]) {
     system(btor2aiger_cmd.c_str());
 
     Gia_Man_t * gia_mng_condSAT = md.Gia_condSAT(aig_path);
-    system(aiger2aiger_cmd.c_str());
+    // system(aiger2aiger_cmd.c_str());
     Cnf_Dat_t * pCnf = (Cnf_Dat_t *) Mf_ManGenerateCnf( gia_mng_condSAT, 8, 1, 0, 0, 0 );
     Gia_ManStop(gia_mng_condSAT);
 
     avy::Glucose g_sat(pCnf->nVars, true, true);
     for (unsigned i=0; i < pCnf->nClauses; i++) {
-        g_sat.addClause(pCnf->pClauses[i], pCnf->pClauses[i+1]);
+        g_sat.addClause(pCnf->pClauses[i], pCnf->pClauses[i + 1]);
     }
 
     Gia_Obj_t* pObj;
@@ -52,14 +52,8 @@ int main(int argc, char* argv[]) {
         for (int var : condVars) {
             block.push_back(toLitCond(var, g_sat.getVarVal(var)));
         }
-        //g_sat.addClause(&block[0], &block[block.size()]);
         g_sat.addClause(block.data(), block.data()+block.size());
     }
-
-
-
-    // SAT solver
-    //(A==(a&b||c))&(B==(x||y))&(C==...).... += &!(A&B&C)&!(A&!B&C)
 
     Gia_Man_t * gia_mng_no_condStates = md.Gia_no_condStates(aig_path);
 
