@@ -7,6 +7,8 @@
 
 #include "metadata.h"
 #include <regex>
+#include "sat/cnf/cnf.h"
+#include "Glucose.h"
 
 
 static Gia_Man_t *loadAig(const std::string& fname) {
@@ -27,6 +29,11 @@ void convert_to_ascii(const std::string& fin, const std::string& fout){
     Cmd_CommandExecute(pFrame, wcmd.c_str());
 }
 */
+
+int condNum(char * ObjName){
+    return stoi(regex_replace(ObjName, regex("[^0-9]*([0-9]+).*"), string("$1")));
+}
+
 Gia_Man_t * MetaData::Gia_remove_condStates(Gia_Man_t *p) {
     Gia_Man_t *pNew;
 
@@ -44,7 +51,7 @@ Gia_Man_t * MetaData::Gia_remove_condStates(Gia_Man_t *p) {
 
     Gia_ManForEachCi(p, pObj, i) {
         pObjName = Gia_ObjCiName(p, i);
-        if (pObjName == strstr(pObjName, cond_prefix)) {
+        if (pObjName == strstr(pObjName, cond_prefix.c_str())) {
             numCond++;
         } else {
             pObj->Value = Gia_ManAppendCi(pNew);
@@ -58,11 +65,12 @@ Gia_Man_t * MetaData::Gia_remove_condStates(Gia_Man_t *p) {
     int numCondCo = 0;
     Gia_ManForEachCo(p, pObj, i) {
         pObjName = Gia_ObjCoName(p, i);
-        if (pObjName == strstr(pObjName, cond_prefix)) {
+        if (pObjName == strstr(pObjName, cond_prefix.c_str())) {
             numCondCo++;
-            int cond_num = stoi(regex_replace(pObjName, regex("[^0-9]*([0-9]+).*"), string("$1")));
+            int cond_num = condNum(pObjName);
             assert(btor_conds.count(cond_num));
-            gia_conds.insert(pair <int64_t, meta*> (Gia_ObjFanin0Copy(pObj), btor_conds.at(cond_num)));
+            gia_conds.insert(pair <int64_t, meta> (Gia_ObjFanin0Copy(pObj), btor_conds.at(cond_num)));
+            stateObj_to_noStateObj.insert(pair <int, int64_t> (Gia_ObjId(p, pObj), Gia_ObjFanin0Copy(pObj)));
         } else {
             pObj->Value = Gia_ManAppendCo(pNew, Gia_ObjFanin0Copy(pObj));
         }
@@ -100,7 +108,7 @@ void Gia_clearMark0ForFaninRec(Gia_Obj_t *pObj){
     }
 }
 
-Gia_Man_t * Gia_DupUnMarked( Gia_Man_t * p )
+Gia_Man_t * MetaData::Gia_DupUnMarked( Gia_Man_t * p )
 {
     Gia_Man_t * pNew;
     Gia_Obj_t * pObj;
@@ -120,18 +128,18 @@ Gia_Man_t * Gia_DupUnMarked( Gia_Man_t * p )
         {
             pObj->fMark0 = 0;
         }
-        else if ( Gia_ObjIsAnd(pObj) )
+        else if ( Gia_ObjIsCo(pObj) )
         {
-            pObj->Value = Gia_ManAppendAnd( pNew, Gia_ObjFanin0Copy(pObj), Gia_ObjFanin1Copy(pObj) );
+            pObj->Value = Gia_ManAppendCo( pNew, Gia_ObjFanin0Copy(pObj)  );
+            satObj_to_stateObj.insert(pair <int, int> (pObj->Value/2, Gia_ObjId(p, pObj)));
         }
-        else if ( Gia_ObjIsCi(pObj) )
-        {
-            pObj->Value = Gia_ManAppendCi( pNew );
+        else if ( Gia_ObjIsAnd(pObj) ) {
+            pObj->Value = Gia_ManAppendAnd(pNew, Gia_ObjFanin0Copy(pObj), Gia_ObjFanin1Copy(pObj));
         }
         else
         {
-            assert( Gia_ObjIsCo(pObj) );
-            pObj->Value = Gia_ManAppendCo( pNew, Gia_ObjFanin0Copy(pObj) );
+            assert( Gia_ObjIsCi(pObj) );
+            pObj->Value = Gia_ManAppendCi( pNew);
         }
     }
     assert( pNew->nObjsAlloc == pNew->nObjs );
@@ -147,12 +155,12 @@ Gia_Man_t * MetaData::Gia_make_condSAT(Gia_Man_t *p) {
     Gia_ManConst0(p)->fMark0 = 0;
     Gia_ManForEachCo(p, pObj, i) {
         pObjName = Gia_ObjCoName(p, i);
-        if (pObjName == strstr(pObjName, cond_prefix)) {
+        if (pObjName == strstr(pObjName, cond_prefix.c_str())) {
             Gia_clearMark0ForFaninRec(pObj);
         }
     }
     Gia_Man_t * pNew = Gia_DupUnMarked(p);
-    Gia_ManCleanMark0(p);
+    Gia_ManCheckMark0(p);
     assert(Gia_ManCoNum(pNew) == btor_conds.size());
     return pNew;
 }
@@ -169,6 +177,35 @@ Gia_Man_t * MetaData::Gia_condSAT(const string& aig_path) {
     Gia_Man_t * gia_cond_sat = Gia_make_condSAT(gia_mng);
     Gia_ManStop(gia_mng);
     return gia_cond_sat;
+}
+
+void MetaData::find_assignments(Gia_Man_t * p) {
+    auto pCnf = (Cnf_Dat_t *) Mf_ManGenerateCnf(p, 8, 0, 0, 0, 0);
+
+    avy::Glucose g_sat(pCnf->nVars, false, true);
+    for (unsigned i = 0; i < pCnf->nClauses; i++) {
+        g_sat.addClause(pCnf->pClauses[i], pCnf->pClauses[i + 1]);
+    }
+
+    Gia_Obj_t *pObj;
+    int obj_idx;
+    Gia_ManForEachCo(p, pObj, obj_idx) {
+        int var = pCnf->pVarNums[(Gia_ObjId(p, pObj))];
+        var_to_satObj.insert(pair <int, int> (var, Gia_ObjId(p, pObj)));
+    }
+    assert(var_to_satObj.size() == btor_conds.size());
+
+    while (g_sat.solve()) {
+        vector<int> block;
+        map<int, bool> ass;
+        for (auto const& [var, satCo] : var_to_satObj) {
+            block.push_back(toLitCond(var, g_sat.getVarVal(var)));
+            ass.insert(pair <int, bool> (satCo_to_noStateObj(satCo), g_sat.getVarVal(var)));
+        }
+        assert(ass.size() == btor_conds.size());
+        g_sat.addClause(block.data(), block.data() + block.size());
+        assignments.push_back(ass);
+    }
 }
 
 #endif //BTOR_ANALYZER_AIGUTILS_H

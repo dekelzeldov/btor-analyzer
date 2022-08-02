@@ -16,6 +16,7 @@
 #include <string>
 #include <sstream>
 #include <map>
+#include <vector>
 
 #include "base/abc/abc.h"
 #include "aig/aig/aig.h"
@@ -31,19 +32,24 @@ using namespace std;
 
 struct meta {
     int cnt_app;
-    meta() : cnt_app(0){}
+    int64_t btor_line;
+    explicit meta(int64_t line) : cnt_app(0), btor_line(line){}
 };
 
 class MetaData
 {
     Btor2Parser *parser;
     const char *model_path;
-    map <int64_t, meta*> btor_conds = {};
-    map <int64_t, meta*> gia_conds = {};
-
-    const char * cond_prefix = "__cond_line_";
+    map <int64_t, meta> btor_conds = {};
+    map <int64_t, meta> gia_conds = {};
+    map <int, int> var_to_satObj = {};
+    map <int, int> satObj_to_stateObj = {};
+    map <int, int64_t> stateObj_to_noStateObj = {};
+    vector<map<int, bool>> assignments = {};
 
 public:
+    string cond_prefix = "__cond_line_";
+
     explicit MetaData (const char *model_path) : model_path(model_path){
         FILE *model_file;
         if (!(model_file = fopen (model_path, "r"))) {
@@ -72,11 +78,11 @@ public:
                 assert (l->nargs == 3);
                 Btor2Line* cond_line = btor2parser_get_line_by_id(parser, l->args[0]);
                 if (btor_conds.count(cond_line->id)){
-                    btor_conds.at(cond_line->id)->cnt_app++;
+                    btor_conds.at(cond_line->id).cnt_app++;
                 } else {
-                    meta * md = new meta();
-                    btor_conds.insert(pair<int64_t, meta*>(cond_line->id, md));
-                    btor_conds.at(cond_line->id)->cnt_app++;
+                    meta md = meta(cond_line->id);
+                    btor_conds.insert(pair<int64_t, meta>(cond_line->id, md));
+                    btor_conds.at(cond_line->id).cnt_app++;
                 }
             }
         }
@@ -114,27 +120,46 @@ public:
         cout << "done adding condition states" << endl;
     }
 
-    map <int64_t, meta*> get_map() {
+    map <int64_t, meta> get_map() {
         return btor_conds;
     }
 
-    void print_conditions () {
+    void print_btor_conditions () {
         cout << endl << "state conditions: " << endl;
-        for (auto & cond : btor_conds) {
-            cout << cond.first << " => appearances: " << cond.second->cnt_app << '\n';
+        for (auto const& [condNum, data] : btor_conds) {
+            cout << condNum << " => appearances: " << data.cnt_app << "\t" << data.btor_line << '\n';
         }
     }
 
-    long num_cond(){
-        assert (btor_conds.size() == gia_conds.size());
-        return (int) btor_conds.size();
+    void print_gia_conditions () {
+        cout << endl << "state conditions: " << endl;
+        for (auto const& [condNum, data] : gia_conds) {
+            cout << condNum << " => appearances: " << data.cnt_app << "\t" << data.btor_line << '\n';
+        }
+    }
+
+    void print_assignments () {
+        cout << endl << "assignments: " << endl;
+        for (const auto& ass : assignments){
+            for (auto const& [obj, val] : ass){
+                cout << obj << ": " << val << "\t";
+            }
+            cout << "\n";
+        }
+    }
+
+    int64_t satCo_to_noStateObj(int i){
+        return stateObj_to_noStateObj[satObj_to_stateObj[i]];
     }
 
     //aigUtils
     Gia_Man_t * Gia_remove_condStates(Gia_Man_t *p);
     Gia_Man_t * Gia_no_condStates(const string& aig_path);
+    Gia_Man_t * Gia_DupUnMarked( Gia_Man_t * p );
     Gia_Man_t * Gia_make_condSAT(Gia_Man_t *p);
     Gia_Man_t * Gia_condSAT(const string& aig_path);
+    void find_assignments(Gia_Man_t * p);
+
 };
 
 #endif //BTOR_ANALYZER_METADATA_H
