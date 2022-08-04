@@ -1,6 +1,7 @@
-
 #include "metadata.h"
+
 #include <string>
+#include <stdio.h>
 
 #include "aig/aig/aig.h"
 #include "aigUtils.h"
@@ -9,27 +10,37 @@
 
 #include "Glucose.h"
 
+#include "btor2aiger.h"
+
 using namespace std;
 using namespace abc;
 
 
 int main(int argc, char* argv[]) {
-    string btor2_path = "/home/dekel/CLionProjects/btor-analyzer/hwmcc20/btor2/bv/2020/mann/simple_alu.btor";
-    string modified_btor2_path = "/home/dekel/CLionProjects/btor-analyzer/src/mdf.btor2";
-    string aig_path = "/home/dekel/CLionProjects/btor-analyzer/src/out.aig";
-    string aig_sat_path = "/home/dekel/CLionProjects/btor-analyzer/src/out_sat.aig";
-    string btor2aiger_cmd = "/home/dekel/workspace/btor2tools/cmake-build-debug/bin/btor2aiger " + modified_btor2_path + " > " + aig_path;
-    string aiger2aiger_cmd = "/home/dekel/workspace/aiger/aigtoaig " + aig_sat_path + " -a";
+    if (argc != 2) return -1;
+
+    string btor2_path = argv[1];
+    string modified_btor2_path = "/tmp/mdf.btor2";
+    string aig_path = "/tmp/out.aig";
+    string aig_sat_path = "/tmp/out_sat.aig";
 
     MetaData md(btor2_path.c_str());
-    md.add_ite_conditions();
+    md.collect_ite_conditions();
     md.add_conditions_states(modified_btor2_path.c_str());
     md.print_conditions();
 
-    system(btor2aiger_cmd.c_str());
+    /// XXX BTOR -> AIGER
+    FILE *infile = fopen(modified_btor2_path.c_str(), "r");
+    Btor2Model model;
+    parse_btor2 (infile, model);
+    fclose (infile);
+    aiger * aig = generate_aiger (md.givemeBtor2Model(), false);
+    FILE *aig_file = fopen(aig_path.c_str(), "w");
+    aiger_write_to_file (aig, aiger_binary_mode, aig_file);
+    fclose(aig_file);
+    ///
 
     Gia_Man_t * gia_mng_condSAT = md.Gia_condSAT(aig_path);
-    // system(aiger2aiger_cmd.c_str());
     Cnf_Dat_t * pCnf = (Cnf_Dat_t *) Mf_ManGenerateCnf( gia_mng_condSAT, 8, 0, 0, 0, 0 );
 
     avy::Glucose g_sat(pCnf->nVars, false, true);
