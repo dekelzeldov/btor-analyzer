@@ -8,7 +8,9 @@ target_link_libraries (btor-analyzer
 #  AbcCpp
   ${AVY_DEBUG_LIBRARY}
   ${EXT_LIBRARIES}
-  ${BTOR_LIBRARY}
+  ${BTOR_PARSER_LIBRARY}
+  ${BTOR_AIGER_LIBRARY}
+  Boolector::boolector
   ${GLUCOSE_LIBRARY}
  # ${Boost_PROGRAM_OPTIONS_LIBRARY}
   m dl pthread z gmp gmpxx stdc++

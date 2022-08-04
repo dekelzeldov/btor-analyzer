@@ -11,6 +11,7 @@ set(CMAKE_MODULE_PATH
         ${CMAKE_MODULE_PATH}
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
         )
+list(APPEND CMAKE_PREFIX_PATH "${BTOR_ROOT}/deps/install")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -64,14 +65,20 @@ else()
   set (MUSER2_LIBRARY "")
 endif()
 
+find_package(Boolector)
+
 #set(SMTPARSER_LIBRARY /home/yakir/workspace/bvmc/smtlib2parser-1.4/libsmtlib2parser.a)
-set(BTOR_LIBRARY ${BTOR_ROOT}/build/lib/libbtor2parser.a)
+set(BTOR_PARSER_LIBRARY ${BTOR_ROOT}/build/lib/libbtor2parser.a)
+set(BTOR_AIGER_LIBRARY ${BTOR_ROOT}/build/lib/libbtor2aiger.a)
 
 MESSAGE(${GLUCOSE_INCLUDE_DIR})
 
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_BINARY_DIR}/include
+        ${BTOR_ROOT}/deps/aiger/
+        ${BTOR_ROOT}/deps/install/include/
+        ${BTOR_ROOT}/src/
         ${BTOR_ROOT}/src/btor2parser
         ${AVY_ROOT}/src
         ${AVY_ROOT}/include
