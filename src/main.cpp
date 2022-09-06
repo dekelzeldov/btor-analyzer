@@ -6,9 +6,6 @@
 #include "aig/aig/aig.h"
 #include "aigUtils.h"
 #include "aig/gia/gia.h"
-#include "sat/cnf/cnf.h"
-
-#include "Glucose.h"
 
 #include "btor2aiger.h"
 
@@ -17,57 +14,33 @@ using namespace abc;
 
 
 int main(int argc, char* argv[]) {
+
     if (argc != 2) return -1;
 
     string btor2_path = argv[1];
-    string modified_btor2_path = "/tmp/mdf.btor2";
-    string aig_path = "/tmp/out.aig";
-    string aig_sat_path = "/tmp/out_sat.aig";
 
+    // Create the MetaData object and read the btor file
     MetaData md(btor2_path.c_str());
+
+    // Collect selected metadata
     md.collect_ite_conditions();
-    md.add_conditions_states(modified_btor2_path.c_str());
-    md.print_conditions();
+    md.print_btor_conditions();
 
-    /// XXX BTOR -> AIGER
-    FILE *infile = fopen(modified_btor2_path.c_str(), "r");
-    Btor2Model model;
-    parse_btor2 (infile, model);
-    fclose (infile);
-    aiger * aig = generate_aiger (md.givemeBtor2Model(), false);
-    FILE *aig_file = fopen(aig_path.c_str(), "w");
-    aiger_write_to_file (aig, aiger_binary_mode, aig_file);
-    fclose(aig_file);
-    ///
+    // Generate an AIG with metadata embedded into it
+    Gia_Man_t *pAig = md.givemeAigWithMeta();
 
-    Gia_Man_t * gia_mng_condSAT = md.Gia_condSAT(aig_path);
-    Cnf_Dat_t * pCnf = (Cnf_Dat_t *) Mf_ManGenerateCnf( gia_mng_condSAT, 8, 0, 0, 0, 0 );
+    // Generate a clean AIG
+    Gia_Man_t * gia_mng_no_condStates = md.Gia_remove_condStates(pAig);
+    md.print_gia_conditions();
 
-    avy::Glucose g_sat(pCnf->nVars, false, true);
-    for (unsigned i=0; i < pCnf->nClauses; i++) {
-        g_sat.addClause(pCnf->pClauses[i], pCnf->pClauses[i + 1]);
-    }
+    // Is this right? The function gets the AIG with metadata?
+    Gia_Man_t * gia_mng_condSAT = md.Gia_make_condSAT(pAig);
+    md.find_assignments(gia_mng_condSAT);
+    md.print_assignments();
 
-    Gia_Obj_t* pObj;
-    unsigned obj_idx;
-    vector<int> condVars;
-    Gia_ManForEachCo(gia_mng_condSAT, pObj, obj_idx) {
-        int var = pCnf->pVarNums[(Gia_ObjId(gia_mng_condSAT, pObj))];
-        condVars.push_back(var);
-    }
+    // prove per assignment
 
-    while (g_sat.solve()) {
-        std::cout << "Found an assignment..." << std::endl;
-        vector<int> block;
-        for (int var : condVars) {
-            block.push_back(toLitCond(var, g_sat.getVarVal(var)));
-        }
-        g_sat.addClause(block.data(), block.data()+block.size());
-    }
-
+    Gia_ManStop(pAig);
     Gia_ManStop(gia_mng_condSAT);
-
-    Gia_Man_t * gia_mng_no_condStates = md.Gia_no_condStates(aig_path);
-
     Gia_ManStop(gia_mng_no_condStates);
 }
